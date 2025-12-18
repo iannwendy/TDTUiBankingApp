@@ -1,0 +1,16 @@
+{
+  "name": "tdtu-mobile-banking-stripe-backend",
+  "version": "1.0.0",
+  "description": "Stripe backend demo for TDTU Mobile Banking PaymentIntent",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^4.21.0",
+    "stripe": "^16.0.0"
+  }
+}
+
+

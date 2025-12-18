@@ -1,0 +1,39 @@
+{
+  "users": {
+    "kQOKfeSIRwWqe4VumvbHnGKG0SE3": {
+      "uid": "kQOKfeSIRwWqe4VumvbHnGKG0SE3",
+      "fullName": "Test Customer",
+      "email": "test@gmail.com",
+      "role": "CUSTOMER",
+      "phoneNumber": "0123456789",
+      "kycStatus": "VERIFIED",
+      "avatarUrl": ""
+    },
+    "nvF97dsWi1fn18uVUkbPm9INlzU2": {
+      "uid": "nvF97dsWi1fn18uVUkbPm9INlzU2",
+      "fullName": "Test Officer",
+      "email": "off@gmail.com",
+      "role": "OFFICER",
+      "phoneNumber": "0987654321",
+      "kycStatus": "VERIFIED",
+      "avatarUrl": ""
+    }
+  },
+  "accounts": {
+    "acc_test_1": {
+      "accountId": "acc_test_1",
+      "ownerId": "kQOKfeSIRwWqe4VumvbHnGKG0SE3",
+      "accountType": "CHECKING",
+      "balance": 5000000,
+      "currency": "VND"
+    },
+    "acc_officer_1": {
+      "accountId": "acc_officer_1",
+      "ownerId": "nvF97dsWi1fn18uVUkbPm9INlzU2",
+      "accountType": "CHECKING",
+      "balance": 10000000,
+      "currency": "VND"
+    }
+  }
+}
+

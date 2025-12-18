@@ -1,0 +1,63 @@
+erDiagram
+
+    User {
+        string uid PK
+        string fullName
+        string email
+        string role
+        string phoneNumber
+        string kycStatus
+        string avatarUrl
+    }
+
+    Account {
+        string accountId PK
+        string ownerId FK
+        string accountType
+        double balance
+        string currency
+        double interestRate
+        int termMonth
+        double principalAmount
+        double mortgageRate
+        int termMonths
+        timestamp startDate
+    }
+
+    Transaction {
+        string transactionId PK
+        string senderAccountId FK
+        string receiverAccountId FK
+        double amount
+        string type
+        string status
+        timestamp timestamp
+        string description
+    }
+
+    Bill {
+        string billId PK
+        string billCode
+        string billType
+        string customerName
+        string customerCode
+        string provider
+        double amount
+        string status
+        timestamp dueDate
+        timestamp createdAt
+        timestamp paidAt
+        string description
+    }
+
+    Branch {
+        string branchId PK
+        string name
+        double latitude
+        double longitude
+        string address
+    }
+
+    User ||--o{ Account : "has"
+    Transaction }o--|| Account : "sends"
+    Transaction }o--|| Account : "receives"

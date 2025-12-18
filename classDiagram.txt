@@ -1,0 +1,214 @@
+classDiagram
+    %% ============================================
+    %% ENUMS
+    %% ============================================
+    
+    class UserRole {
+        <<enumeration>>
+        CUSTOMER
+        OFFICER
+    }
+    
+    class AccountType {
+        <<enumeration>>
+        CHECKING
+        SAVING
+        MORTGAGE
+    }
+    
+    class TransactionStatus {
+        <<enumeration>>
+        SUCCESS
+        FAILED
+        PENDING
+    }
+    
+    class TransactionType {
+        <<enumeration>>
+        TRANSFER_INTERNAL
+        TRANSFER_EXTERNAL
+        BILL_PAYMENT
+        DEPOSIT
+        WITHDRAWAL
+    }
+    
+    class KycStatus {
+        <<enumeration>>
+        VERIFIED
+        PENDING
+        NONE
+    }
+    
+    class BillStatus {
+        <<enumeration>>
+        UNPAID
+        PAID
+        OVERDUE
+        CANCELLED
+    }
+    
+    %% ============================================
+    %% CORE ENTITIES
+    %% ============================================
+    
+    class User {
+        <<abstract>>
+        +String uid
+        +String email
+        +String fullName
+        +String phoneNumber
+        +UserRole role
+        +KycStatus kycStatus
+    }
+    
+    class Customer {
+        +String deviceId
+        +uploadKYCImage()
+        +transferMoney()
+        +payBill()
+    }
+    
+    class BankOfficer {
+        +String employeeId
+        +String department
+        +verifyKYC()
+        +createAccount()
+        +updateInterestRate()
+    }
+    
+    class BankAccount {
+        <<abstract>>
+        +String accountId
+        +String ownerId
+        +Double balance
+        +AccountType accountType
+        +deposit(amount)
+        +withdraw(amount)
+    }
+    
+    class CheckingAccount {
+        +Double overdraftLimit
+    }
+    
+    class SavingAccount {
+        +Double interestRate
+        +Int termMonth
+        +calculateMonthlyProfit()
+    }
+    
+    class MortgageAccount {
+        +Double principalAmount
+        +Double mortgageRate
+        +calculateMonthlyPayment()
+    }
+    
+    class Transaction {
+        +String transactionId
+        +String senderAccountId
+        +String receiverAccountId
+        +Double amount
+        +TransactionType type
+        +TransactionStatus status
+        +Long timestamp
+    }
+    
+    class Bill {
+        +String billId
+        +String billCode
+        +String provider
+        +Double amount
+        +BillStatus status
+        +Long dueDate
+    }
+    
+    class Branch {
+        +String branchId
+        +String name
+        +String address
+        +Double latitude
+        +Double longitude
+    }
+    
+    %% ============================================
+    %% REPOSITORY LAYER
+    %% ============================================
+    
+    class IRepository {
+        <<interface>>
+        +AccountRepository
+        +TransactionRepository
+        +BillRepository
+        +AuthRepository
+        +UserRepository
+    }
+    
+    %% ============================================
+    %% USE CASE LAYER
+    %% ============================================
+    
+    class UseCases {
+        <<package>>
+        +AccountUseCases
+        +TransactionUseCases
+        +BillUseCases
+        +AuthUseCases
+        +UserUseCases
+    }
+    
+    %% ============================================
+    %% SERVICE LAYER
+    %% ============================================
+    
+    class PaymentService {
+        <<service>>
+        +createPaymentIntent()
+        +confirmPayment()
+    }
+    
+    class OtpService {
+        <<service>>
+        +generateOtp()
+        +validateOtp()
+    }
+    
+    %% ============================================
+    %% RELATIONSHIPS - INHERITANCE
+    %% ============================================
+    
+    User <|-- Customer
+    User <|-- BankOfficer
+    BankAccount <|-- CheckingAccount
+    BankAccount <|-- SavingAccount
+    BankAccount <|-- MortgageAccount
+    
+    %% ============================================
+    %% RELATIONSHIPS - COMPOSITION & AGGREGATION
+    %% ============================================
+    
+    Customer "1" *-- "0..*" BankAccount : owns
+    BankAccount "1" --> "0..*" Transaction : has
+    Customer "1" --> "0..*" Bill : pays
+    
+    %% ============================================
+    %% RELATIONSHIPS - DEPENDENCIES
+    %% ============================================
+    
+    User ..> UserRole
+    User ..> KycStatus
+    BankAccount ..> AccountType
+    Transaction ..> TransactionType
+    Transaction ..> TransactionStatus
+    Bill ..> BillStatus
+    
+    UseCases ..> IRepository : depends on
+    UseCases ..> BankAccount : operates on
+    UseCases ..> Transaction : operates on
+    UseCases ..> Bill : operates on
+    UseCases ..> User : operates on
+    
+    UseCases ..> PaymentService : uses
+    UseCases ..> OtpService : uses
+    
+    Customer ..> Transaction : initiates
+    BankOfficer ..> Customer : manages
+    BankOfficer ..> BankAccount : creates

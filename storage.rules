@@ -1,0 +1,30 @@
+rules_version = '2';
+// Firebase Storage Security Rules
+// Allow users to upload and read their own avatar images
+
+service firebase.storage {
+  match /b/{bucket}/o {
+    // Avatar images - users can only upload/read their own avatars
+    match /avatars/{userId}/{imageId} {
+      // Allow read: if user is authenticated and requesting their own avatar
+      allow read: if request.auth != null && request.auth.uid == userId;
+      
+      // Allow write: if user is authenticated and uploading to their own folder
+      // File size limit: 5MB
+      // Content type: only images (jpg, jpeg, png, gif, webp)
+      allow write: if request.auth != null 
+                   && request.auth.uid == userId
+                   && request.resource.size < 5 * 1024 * 1024
+                   && request.resource.contentType.matches('image/.*');
+      
+      // Allow delete: if user is authenticated and deleting their own avatar
+      allow delete: if request.auth != null && request.auth.uid == userId;
+    }
+    
+    // Default: deny all other access
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}
+

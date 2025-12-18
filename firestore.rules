@@ -1,0 +1,72 @@
+  rules_version = '2';
+  service cloud.firestore {
+    match /databases/{database}/documents {
+      
+      function isAuthenticated() {
+        return request.auth != null;
+      }
+      
+      function isOwner(userId) {
+        return isAuthenticated() && request.auth.uid == userId;
+      }
+      
+      function isOfficer() {
+        return isAuthenticated() && (
+          request.auth.token.role == 'OFFICER' ||
+          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'OFFICER'
+        );
+      }
+      
+      function ownsAccount(accountId) {
+        return isAuthenticated() &&
+          accountId is string &&
+          exists(/databases/$(database)/documents/accounts/$(accountId)) &&
+          get(/databases/$(database)/documents/accounts/$(accountId)).data.ownerId == request.auth.uid;
+      }
+
+      match /users/{userId} {
+        allow read: if isAuthenticated();
+        allow create, update: if isOwner(userId) || isOfficer();
+      }
+      
+      match /accounts/{accountId} {
+        allow read: if isAuthenticated();
+        allow update: if isAuthenticated() && 
+          exists(/databases/$(database)/documents/accounts/$(accountId)) &&
+          request.resource.data.ownerId == resource.data.ownerId &&
+          request.resource.data.balance is number &&
+          resource.data.balance is number;
+        allow read, write: if isOfficer();
+      }
+      
+      match /transactions/{transactionId} {
+        // Cho phép mọi user đã đăng nhập đọc lịch sử giao dịch
+        // (giống behavior của firestore_2.rules để không lỗi load LSGD)
+        allow read: if isAuthenticated();
+
+        // Vẫn giữ rule chặt cho tạo transaction
+        allow create: if isAuthenticated() && (
+          ownsAccount(request.resource.data.senderAccountId) ||
+          ownsAccount(request.resource.data.receiverAccountId) ||
+          (request.resource.data.senderAccountId == "SYSTEM" && ownsAccount(request.resource.data.receiverAccountId)) ||
+          (request.resource.data.receiverAccountId == "SYSTEM" && ownsAccount(request.resource.data.senderAccountId)) ||
+          (request.resource.data.receiverAccountId == "UTILITY_PROVIDER" && ownsAccount(request.resource.data.senderAccountId))
+        );
+
+        // Officer vẫn full quyền
+        allow read, write: if isOfficer();
+      }
+      
+      match /branches/{branchId} {
+        allow read: if isAuthenticated();
+        allow write: if isOfficer();
+      }
+      
+      // Bills collection for utility payments
+      match /bills/{billId} {
+        allow read: if isAuthenticated();
+        allow create: if isAuthenticated();
+        allow update: if isAuthenticated();
+      }
+    }
+  }
