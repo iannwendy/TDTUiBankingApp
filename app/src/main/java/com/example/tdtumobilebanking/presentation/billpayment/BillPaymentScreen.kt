@@ -33,9 +33,6 @@ import com.example.tdtumobilebanking.domain.model.Bill
 import com.example.tdtumobilebanking.domain.model.BillStatus
 import com.example.tdtumobilebanking.ui.theme.BrandBlue
 import com.example.tdtumobilebanking.ui.theme.BrandRed
-import androidx.activity.ComponentActivity
-import com.stripe.android.paymentsheet.PaymentSheetResult
-import com.example.tdtumobilebanking.presentation.billpayment.StripePaymentManager
 import java.text.NumberFormat
 import java.text.SimpleDateFormat
 import java.util.*
@@ -50,37 +47,7 @@ fun BillPaymentScreen(
 ) {
     val formatter = NumberFormat.getNumberInstance(Locale("vi", "VN"))
     val focusManager = LocalFocusManager.current
-    val context = LocalContext.current
-    val activity = context as? ComponentActivity
 
-    // Khi đã có clientSecret từ backend -> hiển thị PaymentSheet
-    LaunchedEffect(state.paymentClientSecret) {
-        val clientSecret = state.paymentClientSecret
-        if (clientSecret != null && !state.paymentSuccess && activity != null) {
-            try {
-                StripePaymentManager.present(clientSecret) { result ->
-                    when (result) {
-                        is PaymentSheetResult.Completed ->
-                            onEvent(BillPaymentEvent.PaymentCompleted)
-                        is PaymentSheetResult.Failed ->
-                            onEvent(
-                                BillPaymentEvent.PaymentFailed(
-                                    result.error.localizedMessage ?: "Thanh toán thất bại"
-                                )
-                            )
-                        PaymentSheetResult.Canceled ->
-                            onEvent(BillPaymentEvent.PaymentFailed("Đã hủy thanh toán"))
-                    }
-                }
-            } catch (e: Exception) {
-                onEvent(
-                    BillPaymentEvent.PaymentFailed(
-                        "Không thể mở màn hình thanh toán Stripe: ${e.message}"
-                    )
-                )
-            }
-        }
-    }
 
     Column(
         modifier = Modifier
@@ -186,7 +153,7 @@ fun BillPaymentScreen(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Pay Button
+            // Continue to OTP Button
             Button(
                 onClick = { onPayWithStripe() },
                 modifier = Modifier
@@ -197,29 +164,19 @@ fun BillPaymentScreen(
                     containerColor = BrandBlue,
                     disabledContainerColor = Color.Gray.copy(alpha = 0.3f)
                 ),
-                enabled = state.bill != null && !state.isProcessingPayment && state.currentBalance >= (state.bill?.amount ?: 0.0)
+                enabled = state.bill != null && state.currentBalance >= (state.bill?.amount ?: 0.0)
             ) {
-                if (state.isProcessingPayment) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(24.dp),
-                        color = Color.White,
-                        strokeWidth = 2.dp
-                    )
-                    Spacer(modifier = Modifier.width(12.dp))
-                    Text("Đang xử lý...")
-                } else {
-                    Icon(
-                        Icons.Rounded.CreditCard,
-                        contentDescription = null,
-                        modifier = Modifier.size(24.dp)
-                    )
-                    Spacer(modifier = Modifier.width(12.dp))
-                    Text(
-                        text = "Thanh toán ngay",
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.SemiBold
-                    )
-                }
+                Icon(
+                    Icons.Rounded.ArrowForward,
+                    contentDescription = null,
+                    modifier = Modifier.size(24.dp)
+                )
+                Spacer(modifier = Modifier.width(12.dp))
+                Text(
+                    text = "Tiếp tục",
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.SemiBold
+                )
             }
 
             // Balance warning

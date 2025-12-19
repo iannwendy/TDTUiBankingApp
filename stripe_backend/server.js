@@ -23,16 +23,25 @@ app.get('/', (_req, res) => {
 
 app.post('/create-payment-intent', async (req, res) => {
   try {
-    const { amount, currency, billCode } = req.body;
+    const { amount, currency, billCode, description } = req.body;
 
     if (!amount || !currency) {
       return res.status(400).json({ error: 'Missing amount or currency' });
     }
 
+    // Ưu tiên description từ request, sau đó billCode, cuối cùng là mặc định
+    let paymentDescription = description;
+    if (!paymentDescription && billCode) {
+      paymentDescription = `Thanh toán hóa đơn ${billCode}`;
+    }
+    if (!paymentDescription) {
+      paymentDescription = 'TDTU Mobile Banking payment';
+    }
+
     const paymentIntent = await stripe.paymentIntents.create({
       amount, // ví dụ: 500000 (VND)
       currency, // "vnd"
-      description: billCode ? `Thanh toán hóa đơn ${billCode}` : 'TDTU Mobile Banking utility payment',
+      description: paymentDescription,
       automatic_payment_methods: {
         enabled: true,
       },

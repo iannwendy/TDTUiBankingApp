@@ -1,4 +1,4 @@
-package com.example.tdtumobilebanking.presentation.transactions
+package com.example.tdtumobilebanking.presentation.billpayment
 
 import androidx.activity.ComponentActivity
 import androidx.compose.foundation.background
@@ -39,43 +39,43 @@ import com.example.tdtumobilebanking.ui.theme.BrandRed
 import com.stripe.android.paymentsheet.PaymentSheetResult
 import com.example.tdtumobilebanking.presentation.billpayment.StripePaymentManager
 import java.text.NumberFormat
-import java.util.Locale
+import java.text.SimpleDateFormat
+import java.util.*
 
 @Composable
-fun DepositWithdrawOtpScreen(
-    state: DepositWithdrawUiState,
-    onEvent: (DepositWithdrawEvent) -> Unit,
+fun BillPaymentOtpScreen(
+    state: BillPaymentUiState,
+    onEvent: (BillPaymentEvent) -> Unit,
     onBack: () -> Unit,
     onConfirm: () -> Unit,
     onAutoFillOtp: () -> Unit = {}
 ) {
     val formatter = NumberFormat.getNumberInstance(Locale("vi", "VN"))
-    val screenTitle = if (state.type == DepositWithdrawType.DEPOSIT) "Nạp tiền" else "Rút tiền"
     val context = LocalContext.current
     val activity = context as? ComponentActivity
 
-    // Khi đã có clientSecret từ backend -> hiển thị PaymentSheet (chỉ cho DEPOSIT)
+    // Khi đã có clientSecret từ backend -> hiển thị PaymentSheet
     LaunchedEffect(state.paymentClientSecret) {
         val clientSecret = state.paymentClientSecret
-        if (clientSecret != null && !state.success && state.type == DepositWithdrawType.DEPOSIT && activity != null) {
+        if (clientSecret != null && !state.paymentSuccess && activity != null) {
             try {
                 StripePaymentManager.present(clientSecret) { result ->
                     when (result) {
                         is PaymentSheetResult.Completed ->
-                            onEvent(DepositWithdrawEvent.PaymentCompleted)
+                            onEvent(BillPaymentEvent.PaymentCompleted)
                         is PaymentSheetResult.Failed ->
                             onEvent(
-                                DepositWithdrawEvent.PaymentFailed(
+                                BillPaymentEvent.PaymentFailed(
                                     result.error.localizedMessage ?: "Thanh toán thất bại"
                                 )
                             )
                         PaymentSheetResult.Canceled ->
-                            onEvent(DepositWithdrawEvent.PaymentFailed("Đã hủy thanh toán"))
+                            onEvent(BillPaymentEvent.PaymentFailed("Đã hủy thanh toán"))
                     }
                 }
             } catch (e: Exception) {
                 onEvent(
-                    DepositWithdrawEvent.PaymentFailed(
+                    BillPaymentEvent.PaymentFailed(
                         "Không thể mở màn hình thanh toán Stripe: ${e.message}"
                     )
                 )
@@ -99,7 +99,7 @@ fun DepositWithdrawOtpScreen(
                 Icon(Icons.Default.ArrowBack, contentDescription = "Back", tint = BrandBlue)
             }
             Text(
-                text = "Xác thực OTP - $screenTitle",
+                text = "Xác thực OTP - Thanh toán hóa đơn",
                 style = MaterialTheme.typography.titleLarge.copy(
                     fontWeight = FontWeight.Bold,
                     color = BrandBlue
@@ -203,7 +203,7 @@ fun DepositWithdrawOtpScreen(
 
                 OutlinedTextField(
                     value = state.enteredOtp,
-                    onValueChange = { onEvent(DepositWithdrawEvent.OtpChanged(it)) },
+                    onValueChange = { onEvent(BillPaymentEvent.OtpChanged(it)) },
                     modifier = Modifier
                         .fillMaxWidth()
                         .border(2.dp, BrandBlue, RoundedCornerShape(8.dp)),
@@ -214,101 +214,101 @@ fun DepositWithdrawOtpScreen(
                     enabled = !state.otpExpired
                 )
 
-                // Transaction Summary
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(8.dp),
-                    colors = CardDefaults.cardColors(containerColor = Color.White),
-                    border = androidx.compose.foundation.BorderStroke(1.dp, Color.Gray.copy(alpha = 0.3f))
-                ) {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                // Bill Info Summary
+                state.bill?.let { bill ->
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(8.dp),
+                        colors = CardDefaults.cardColors(containerColor = Color.White),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, Color.Gray.copy(alpha = 0.3f))
                     ) {
-                        Text(
-                            text = "Thông tin giao dịch",
-                            style = MaterialTheme.typography.titleMedium.copy(
-                                fontWeight = FontWeight.Bold,
-                                color = BrandBlue
-                            )
-                        )
-
-                        // Tài khoản
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(16.dp),
+                            verticalArrangement = Arrangement.spacedBy(12.dp)
                         ) {
                             Text(
-                                "Tài khoản:",
-                                style = MaterialTheme.typography.bodyMedium,
-                                modifier = Modifier.weight(0.4f)
-                            )
-                            Text(
-                                text = state.accountNumber,
-                                style = MaterialTheme.typography.bodyMedium.copy(
-                                    fontWeight = FontWeight.Bold
-                                ),
-                                modifier = Modifier.weight(0.6f),
-                                textAlign = androidx.compose.ui.text.style.TextAlign.End
-                            )
-                        }
-
-                        // Loại giao dịch
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            Text(
-                                "Loại:",
-                                style = MaterialTheme.typography.bodyMedium,
-                                modifier = Modifier.weight(0.4f)
-                            )
-                            Text(
-                                text = if (state.type == DepositWithdrawType.DEPOSIT) "Nạp tiền" else "Rút tiền",
-                                style = MaterialTheme.typography.bodyMedium.copy(
-                                    fontWeight = FontWeight.Bold
-                                ),
-                                modifier = Modifier.weight(0.6f),
-                                textAlign = androidx.compose.ui.text.style.TextAlign.End
-                            )
-                        }
-
-                        // Số tiền
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            Text(
-                                "Số tiền:",
-                                style = MaterialTheme.typography.bodyMedium,
-                                modifier = Modifier.weight(0.4f)
-                            )
-                            Text(
-                                text = "${formatter.format(state.amount.replace(",", "").toDoubleOrNull()?.toLong() ?: 0)} VND",
-                                style = MaterialTheme.typography.bodyMedium.copy(
+                                text = "Thông tin hóa đơn",
+                                style = MaterialTheme.typography.titleMedium.copy(
                                     fontWeight = FontWeight.Bold,
-                                    color = if (state.type == DepositWithdrawType.DEPOSIT) Color(0xFF16A34A) else BrandRed
-                                ),
-                                modifier = Modifier.weight(0.6f),
-                                textAlign = androidx.compose.ui.text.style.TextAlign.End
+                                    color = BrandBlue
+                                )
                             )
-                        }
 
-                        // Nội dung
-                        if (state.description.isNotBlank()) {
+                            // Mã hóa đơn
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.SpaceBetween
                             ) {
                                 Text(
-                                    "Nội dung:",
+                                    "Mã hóa đơn:",
                                     style = MaterialTheme.typography.bodyMedium,
                                     modifier = Modifier.weight(0.4f)
                                 )
                                 Text(
-                                    text = state.description,
+                                    text = bill.billCode,
+                                    style = MaterialTheme.typography.bodyMedium.copy(
+                                        fontWeight = FontWeight.Bold
+                                    ),
+                                    modifier = Modifier.weight(0.6f),
+                                    textAlign = androidx.compose.ui.text.style.TextAlign.End
+                                )
+                            }
+
+                            // Nhà cung cấp
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Text(
+                                    "Nhà cung cấp:",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    modifier = Modifier.weight(0.4f)
+                                )
+                                Text(
+                                    text = bill.provider,
+                                    style = MaterialTheme.typography.bodyMedium.copy(
+                                        fontWeight = FontWeight.Bold
+                                    ),
+                                    modifier = Modifier.weight(0.6f),
+                                    textAlign = androidx.compose.ui.text.style.TextAlign.End
+                                )
+                            }
+
+                            // Số tiền
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Text(
+                                    "Số tiền:",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    modifier = Modifier.weight(0.4f)
+                                )
+                                Text(
+                                    text = "${formatter.format(bill.amount.toLong())} VND",
+                                    style = MaterialTheme.typography.bodyMedium.copy(
+                                        fontWeight = FontWeight.Bold,
+                                        color = BrandRed
+                                    ),
+                                    modifier = Modifier.weight(0.6f),
+                                    textAlign = androidx.compose.ui.text.style.TextAlign.End
+                                )
+                            }
+
+                            // Tài khoản
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Text(
+                                    "Tài khoản:",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    modifier = Modifier.weight(0.4f)
+                                )
+                                Text(
+                                    text = state.accountNumber,
                                     style = MaterialTheme.typography.bodyMedium.copy(
                                         fontWeight = FontWeight.Bold
                                     ),
@@ -322,10 +322,20 @@ fun DepositWithdrawOtpScreen(
 
                 Spacer(modifier = Modifier.height(16.dp))
 
-                // Payment error (chỉ hiển thị cho DEPOSIT với Stripe)
-                if (state.type == DepositWithdrawType.DEPOSIT && state.paymentError != null) {
+                // Payment error
+                if (state.paymentError != null) {
                     Text(
                         text = state.paymentError,
+                        color = BrandRed,
+                        style = MaterialTheme.typography.bodySmall,
+                        modifier = Modifier.padding(bottom = 8.dp)
+                    )
+                }
+
+                // Error message
+                state.lookupError?.let {
+                    Text(
+                        text = it,
                         color = BrandRed,
                         style = MaterialTheme.typography.bodySmall,
                         modifier = Modifier.padding(bottom = 8.dp)
@@ -338,26 +348,15 @@ fun DepositWithdrawOtpScreen(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(8.dp),
                     colors = ButtonDefaults.buttonColors(containerColor = BrandBlue),
-                    enabled = !state.otpExpired && state.enteredOtp.isNotBlank() && !state.isLoading && !state.isProcessingPayment
+                    enabled = !state.otpExpired && state.enteredOtp.isNotBlank() && !state.isProcessingPayment
                 ) {
                     Text(
                         text = when {
                             state.isProcessingPayment -> "Đang xử lý thanh toán..."
-                            state.isLoading -> "Đang xử lý..."
                             else -> "Xác nhận"
                         },
                         color = Color.White,
                         fontSize = 16.sp
-                    )
-                }
-
-                // Error message
-                state.error?.let {
-                    Text(
-                        text = it,
-                        color = BrandRed,
-                        style = MaterialTheme.typography.bodySmall,
-                        modifier = Modifier.padding(top = 8.dp)
                     )
                 }
             }

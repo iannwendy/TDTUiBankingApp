@@ -11,14 +11,16 @@ class CreateStripePaymentIntentUseCase @Inject constructor(
 
     suspend operator fun invoke(
         amount: Double,
-        billCode: String
+        billCode: String? = null,
+        description: String? = null
     ): ResultState<String> {
         return try {
             // Stripe yêu cầu amount theo đơn vị nhỏ nhất (VD: VND -> số nguyên)
             val request = CreatePaymentIntentRequest(
                 amount = amount.toLong(),
                 currency = "vnd",
-                billCode = billCode
+                billCode = billCode,
+                description = description
             )
             val response = stripePaymentApi.createPaymentIntent(request)
             ResultState.Success(response.clientSecret)

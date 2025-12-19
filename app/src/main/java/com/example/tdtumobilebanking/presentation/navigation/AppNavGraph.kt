@@ -44,6 +44,7 @@ import com.example.tdtumobilebanking.presentation.utilities.UtilityResultScreen
 import com.example.tdtumobilebanking.presentation.utilities.UtilitiesViewModel
 import com.example.tdtumobilebanking.presentation.utilities.UtilitiesEvent
 import com.example.tdtumobilebanking.presentation.billpayment.BillPaymentScreen
+import com.example.tdtumobilebanking.presentation.billpayment.BillPaymentOtpScreen
 import com.example.tdtumobilebanking.presentation.billpayment.BillPaymentResultScreen
 import com.example.tdtumobilebanking.presentation.billpayment.BillPaymentViewModel
 import com.example.tdtumobilebanking.presentation.billpayment.BillPaymentEvent
@@ -535,6 +536,33 @@ fun AppNavGraph(navController: NavHostController = rememberNavController()) {
                 val vm: BillPaymentViewModel = hiltViewModel()
                 val state by vm.uiState.collectAsStateWithLifecycle()
                 
+                BillPaymentScreen(
+                    state = state,
+                    onEvent = vm::onEvent,
+                    onBack = { navController.popBackStack() },
+                    onPayWithStripe = {
+                        if (vm.proceedToOtp()) {
+                            navController.navigate(AppDestinations.BILL_PAYMENT_OTP)
+                        }
+                    }
+                )
+            }
+            
+            composable(AppDestinations.BILL_PAYMENT_OTP) {
+                val billEntry = remember {
+                    try {
+                        navController.getBackStackEntry(AppDestinations.BILL_PAYMENT)
+                    } catch (e: IllegalArgumentException) {
+                        null
+                    }
+                }
+                val vm: BillPaymentViewModel = if (billEntry != null) {
+                    hiltViewModel(billEntry)
+                } else {
+                    hiltViewModel()
+                }
+                val state by vm.uiState.collectAsStateWithLifecycle()
+
                 LaunchedEffect(state.paymentSuccess) {
                     if (state.paymentSuccess) {
                         navController.navigate(AppDestinations.BILL_PAYMENT_RESULT) {
@@ -542,14 +570,15 @@ fun AppNavGraph(navController: NavHostController = rememberNavController()) {
                         }
                     }
                 }
-                
-                BillPaymentScreen(
+
+                BillPaymentOtpScreen(
                     state = state,
                     onEvent = vm::onEvent,
                     onBack = { navController.popBackStack() },
-                    onPayWithStripe = {
-                        vm.onEvent(BillPaymentEvent.InitiatePayment)
-                    }
+                    onConfirm = {
+                        vm.onEvent(BillPaymentEvent.ConfirmOtp)
+                    },
+                    onAutoFillOtp = { vm.autoFillOtp() }
                 )
             }
             

@@ -6,7 +6,8 @@ import retrofit2.http.POST
 data class CreatePaymentIntentRequest(
     val amount: Long,
     val currency: String = "vnd",
-    val billCode: String
+    val billCode: String? = null,
+    val description: String? = null
 )
 
 data class CreatePaymentIntentResponse(

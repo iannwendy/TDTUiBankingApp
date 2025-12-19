@@ -28,6 +28,7 @@ object AppDestinations {
     
     // Bill Payment with Stripe
     const val BILL_PAYMENT = "bill_payment"
+    const val BILL_PAYMENT_OTP = "bill_payment_otp"
     const val BILL_PAYMENT_RESULT = "bill_payment_result"
     
     fun utilityDetail(utilityType: String) = "utility_detail/$utilityType"

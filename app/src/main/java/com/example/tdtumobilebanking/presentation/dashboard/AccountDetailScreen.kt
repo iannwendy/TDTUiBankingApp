@@ -28,6 +28,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.example.tdtumobilebanking.domain.model.Account
 import com.example.tdtumobilebanking.domain.model.AccountType
+import java.text.NumberFormat
+import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -43,10 +45,10 @@ fun AccountDetailScreen(
     )
 
     val title = when (account.accountType) {
-        AccountType.CHECKING -> "Checking Account"
-        AccountType.SAVING -> "Saving Account"
-        AccountType.MORTGAGE -> "Mortgage Loan"
-        else -> "Account"
+        AccountType.CHECKING -> "Tài khoản Vãng lai"
+        AccountType.SAVING -> "Tài khoản Tiết kiệm"
+        AccountType.MORTGAGE -> "Khoản vay Thế chấp"
+        else -> "Tài khoản"
     }
 
     Scaffold(
@@ -55,7 +57,7 @@ fun AccountDetailScreen(
                 title = { Text(text = title, fontWeight = FontWeight.SemiBold) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.Rounded.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.Rounded.ArrowBack, contentDescription = "Quay lại")
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -95,7 +97,7 @@ fun AccountDetailScreen(
                         fontWeight = FontWeight.Bold
                     )
                     Text(
-                        text = "${account.balance} ${account.currency}",
+                        text = formatBalance(account.balance, account.currency),
                         style = MaterialTheme.typography.headlineSmall,
                         fontWeight = FontWeight.ExtraBold
                     )
@@ -114,23 +116,23 @@ fun AccountDetailScreen(
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     Text(
-                        text = "Details",
+                        text = "Chi tiết",
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.SemiBold
                     )
                     Spacer(modifier = Modifier.height(4.dp))
-                    Text("Account Type: $title", style = MaterialTheme.typography.bodyMedium)
-                    Text("Currency: ${account.currency}", style = MaterialTheme.typography.bodyMedium)
+                    Text("Loại tài khoản: $title", style = MaterialTheme.typography.bodyMedium)
+                    Text("Tiền tệ: ${account.currency}", style = MaterialTheme.typography.bodyMedium)
                     if (account.accountType == AccountType.SAVING) {
                         account.interestRate?.let {
                             Text(
-                                text = "Interest rate: ${it} %",
+                                text = "Lãi suất: ${it} %",
                                 style = MaterialTheme.typography.bodyMedium
                             )
                         }
                         monthlyProfit?.let {
                             Text(
-                                text = "Estimated monthly profit: $it ${account.currency}",
+                                text = "Lợi nhuận ước tính hàng tháng: ${formatBalance(it, account.currency)}",
                                 style = MaterialTheme.typography.bodyMedium
                             )
                         }
@@ -138,7 +140,7 @@ fun AccountDetailScreen(
                     if (account.accountType == AccountType.MORTGAGE) {
                         mortgagePayment?.let {
                             Text(
-                                text = "Monthly payment: $it ${account.currency}",
+                                text = "Thanh toán hàng tháng: ${formatBalance(it, account.currency)}",
                                 style = MaterialTheme.typography.bodyMedium
                             )
                         }
@@ -148,5 +150,4 @@ fun AccountDetailScreen(
         }
     }
 }
-
 

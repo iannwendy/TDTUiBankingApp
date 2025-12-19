@@ -8,11 +8,13 @@ import com.example.tdtumobilebanking.domain.usecase.account.GetAccountsUseCase
 import com.example.tdtumobilebanking.domain.usecase.transaction.DepositMoneyUseCase
 import com.example.tdtumobilebanking.domain.usecase.transaction.GenerateOtpUseCase
 import com.example.tdtumobilebanking.domain.usecase.transaction.WithdrawMoneyUseCase
+import com.example.tdtumobilebanking.domain.usecase.utilities.CreateStripePaymentIntentUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.Job
 import javax.inject.Inject
 
 enum class DepositWithdrawType {
@@ -35,7 +37,11 @@ data class DepositWithdrawUiState(
     val otpCountdown: Int = 20,
     val otpExpired: Boolean = false,
     val availableAccounts: List<com.example.tdtumobilebanking.domain.model.Account> = emptyList(),
-    val showAccountSelector: Boolean = false
+    val showAccountSelector: Boolean = false,
+    // Stripe payment (chỉ dùng cho DEPOSIT)
+    val isProcessingPayment: Boolean = false,
+    val paymentClientSecret: String? = null,
+    val paymentError: String? = null
 )
 
 sealed class DepositWithdrawEvent {
@@ -48,6 +54,8 @@ sealed class DepositWithdrawEvent {
     data object ShowAccountSelector : DepositWithdrawEvent()
     data object HideAccountSelector : DepositWithdrawEvent()
     data class SelectAccount(val accountId: String) : DepositWithdrawEvent()
+    data object PaymentCompleted : DepositWithdrawEvent()
+    data class PaymentFailed(val error: String) : DepositWithdrawEvent()
 }
 
 @HiltViewModel
@@ -56,8 +64,11 @@ class DepositWithdrawViewModel @Inject constructor(
     private val withdrawMoneyUseCase: WithdrawMoneyUseCase,
     private val generateOtpUseCase: GenerateOtpUseCase,
     private val getAccountsUseCase: GetAccountsUseCase,
-    private val authRepository: AuthRepository
+    private val authRepository: AuthRepository,
+    private val createStripePaymentIntentUseCase: CreateStripePaymentIntentUseCase
 ) : BaseViewModel<DepositWithdrawUiState>(DepositWithdrawUiState()) {
+
+    private var otpCountdownJob: Job? = null
 
     fun initialize(type: DepositWithdrawType, accountId: String? = null) {
         viewModelScope.launch {
@@ -203,6 +214,10 @@ class DepositWithdrawViewModel @Inject constructor(
                     }
                 } ?: android.util.Log.w("DepositWithdrawVM", "Account not found: ${event.accountId}")
             }
+            DepositWithdrawEvent.PaymentCompleted -> handlePaymentSuccess()
+            is DepositWithdrawEvent.PaymentFailed -> {
+                setState { copy(isProcessingPayment = false, paymentClientSecret = null, paymentError = event.error) }
+            }
         }
     }
 
@@ -235,21 +250,32 @@ class DepositWithdrawViewModel @Inject constructor(
     }
 
     private fun startOtpCountdown() {
-        viewModelScope.launch {
+        // Cancel previous countdown job if exists
+        otpCountdownJob?.cancel()
+        
+        otpCountdownJob = viewModelScope.launch {
             var remaining = 20
             setState { copy(otpCountdown = remaining, otpExpired = false) }
             while (remaining > 0) {
                 delay(1000)
+                // Kiểm tra xem transaction đã thành công chưa, nếu có thì dừng countdown
+                if (uiState.value.success) {
+                    android.util.Log.d("DepositWithdrawVM", "Transaction succeeded, stopping OTP countdown")
+                    return@launch
+                }
                 remaining--
                 setState { copy(otpCountdown = remaining) }
             }
-            setState {
-                copy(
-                    otpExpired = true,
-                    generatedOtp = null,
-                    enteredOtp = "",
-                    error = "OTP đã hết hạn. Vui lòng thử lại."
-                )
+            // Chỉ set expired nếu transaction chưa thành công
+            if (!uiState.value.success) {
+                setState {
+                    copy(
+                        otpExpired = true,
+                        generatedOtp = null,
+                        enteredOtp = "",
+                        error = "OTP đã hết hạn. Vui lòng thử lại."
+                    )
+                }
             }
         }
     }
@@ -281,36 +307,132 @@ class DepositWithdrawViewModel @Inject constructor(
             return
         }
 
-        setState { copy(isLoading = true, error = null, success = false) }
-        viewModelScope.launch {
-            android.util.Log.d("DepositWithdrawVM", "Confirming transaction: type=${current.type}, accountId=${current.accountId}, amount=$amount")
-            val result = if (current.type == DepositWithdrawType.DEPOSIT) {
-                depositMoneyUseCase(
-                    accountId = current.accountId,
-                    amount = amount,
-                    description = current.description.ifBlank { "Nạp tiền" }
-                )
-            } else {
-                withdrawMoneyUseCase(
+        // Dừng OTP countdown khi bắt đầu xử lý transaction
+        otpCountdownJob?.cancel()
+        otpCountdownJob = null
+
+        // Với DEPOSIT: sau khi OTP đúng, tạo PaymentIntent và chuyển sang Stripe
+        // Với WITHDRAW: giữ nguyên logic cũ (trực tiếp rút tiền)
+        if (current.type == DepositWithdrawType.DEPOSIT) {
+            initiateStripePayment(amount)
+        } else {
+            // WITHDRAW: giữ nguyên logic cũ
+            setState { copy(isLoading = true, error = null, success = false) }
+            viewModelScope.launch {
+                android.util.Log.d("DepositWithdrawVM", "Confirming withdrawal: accountId=${current.accountId}, amount=$amount")
+                val result = withdrawMoneyUseCase(
                     accountId = current.accountId,
                     amount = amount,
                     description = current.description.ifBlank { "Rút tiền" }
                 )
+                when (result) {
+                    is ResultState.Error -> {
+                        android.util.Log.e("DepositWithdrawVM", "Transaction error: ${result.throwable.message}", result.throwable)
+                        setState {
+                            copy(
+                                isLoading = false,
+                                error = result.throwable.message ?: "Có lỗi xảy ra"
+                            )
+                        }
+                    }
+                    ResultState.Loading -> setState { copy(isLoading = true) }
+                    is ResultState.Success -> {
+                        android.util.Log.d("DepositWithdrawVM", "Transaction successful, setting success=true")
+                        // Dừng OTP countdown khi transaction thành công
+                        otpCountdownJob?.cancel()
+                        otpCountdownJob = null
+                        setState { copy(isLoading = false, success = true) }
+                    }
+                }
             }
+        }
+    }
+
+    private fun initiateStripePayment(amount: Double) {
+        val current = uiState.value
+        setState { copy(isProcessingPayment = true, paymentError = null, paymentClientSecret = null, error = null) }
+
+        viewModelScope.launch {
+            try {
+                android.util.Log.d("DepositWithdrawVM", "Creating PaymentIntent for deposit: amount=$amount")
+                when (val result = createStripePaymentIntentUseCase(
+                    amount = amount,
+                    billCode = null,
+                    description = current.description.ifBlank { "Nạp tiền" }
+                )) {
+                    is ResultState.Success -> {
+                        val clientSecret = result.data
+                        setState {
+                            copy(
+                                isProcessingPayment = false,
+                                paymentClientSecret = clientSecret,
+                                paymentError = null
+                            )
+                        }
+                        android.util.Log.d("DepositWithdrawVM", "PaymentIntent created successfully")
+                    }
+                    is ResultState.Error -> {
+                        setState {
+                            copy(
+                                isProcessingPayment = false,
+                                paymentClientSecret = null,
+                                paymentError = result.throwable.message ?: "Không thể khởi tạo thanh toán"
+                            )
+                        }
+                        android.util.Log.e("DepositWithdrawVM", "Error creating PaymentIntent: ${result.throwable.message}")
+                    }
+                    ResultState.Loading -> {
+                        // Không cần xử lý
+                    }
+                }
+            } catch (e: Exception) {
+                android.util.Log.e("DepositWithdrawVM", "Error initiating payment", e)
+                setState {
+                    copy(
+                        isProcessingPayment = false,
+                        paymentClientSecret = null,
+                        paymentError = "Không thể khởi tạo thanh toán: ${e.message}"
+                    )
+                }
+            }
+        }
+    }
+
+    fun handlePaymentSuccess() {
+        val current = uiState.value
+        val amount = current.amount.replace(",", "").toDoubleOrNull() ?: return
+
+        setState { copy(isProcessingPayment = true, paymentError = null, error = null) }
+        viewModelScope.launch {
+            android.util.Log.d("DepositWithdrawVM", "Stripe payment completed, depositing money: accountId=${current.accountId}, amount=$amount")
+            val result = depositMoneyUseCase(
+                accountId = current.accountId,
+                amount = amount,
+                description = current.description.ifBlank { "Nạp tiền" }
+            )
             when (result) {
                 is ResultState.Error -> {
-                    android.util.Log.e("DepositWithdrawVM", "Transaction error: ${result.throwable.message}", result.throwable)
+                    android.util.Log.e("DepositWithdrawVM", "Deposit error after Stripe success: ${result.throwable.message}", result.throwable)
                     setState {
                         copy(
-                            isLoading = false,
-                            error = result.throwable.message ?: "Có lỗi xảy ra"
+                            isProcessingPayment = false,
+                            paymentError = result.throwable.message ?: "Có lỗi xảy ra khi nạp tiền"
                         )
                     }
                 }
-                ResultState.Loading -> setState { copy(isLoading = true) }
+                ResultState.Loading -> setState { copy(isProcessingPayment = true) }
                 is ResultState.Success -> {
-                    android.util.Log.d("DepositWithdrawVM", "Transaction successful, setting success=true")
-                    setState { copy(isLoading = false, success = true) }
+                    android.util.Log.d("DepositWithdrawVM", "Deposit successful after Stripe payment")
+                    // Dừng OTP countdown khi transaction thành công
+                    otpCountdownJob?.cancel()
+                    otpCountdownJob = null
+                    setState {
+                        copy(
+                            isProcessingPayment = false,
+                            success = true,
+                            paymentClientSecret = null
+                        )
+                    }
                 }
             }
         }
@@ -326,7 +448,10 @@ class DepositWithdrawViewModel @Inject constructor(
                 error = null,
                 success = false,
                 otpCountdown = 20,
-                otpExpired = false
+                otpExpired = false,
+                isProcessingPayment = false,
+                paymentClientSecret = null,
+                paymentError = null
             )
         }
     }

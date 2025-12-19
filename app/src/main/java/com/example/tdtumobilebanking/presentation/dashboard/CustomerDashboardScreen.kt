@@ -765,12 +765,18 @@ private fun Transaction.toUi(accountId: String?, currency: String): TransactionU
 
 private fun formatCurrency(value: Double, currencyCode: String): String {
     return runCatching {
-        val format = NumberFormat.getCurrencyInstance(Locale.US)
-        format.currency = Currency.getInstance(currencyCode.uppercase(Locale.getDefault()))
-        format.maximumFractionDigits = 2
-        format.minimumFractionDigits = 2
-        format.format(value)
-    }.getOrElse { String.format("%,.2f %s", value, currencyCode) }
+        // Use NumberFormat to avoid scientific notation
+        val format = NumberFormat.getNumberInstance(Locale.US)
+        format.maximumFractionDigits = 0
+        format.minimumFractionDigits = 0
+        "${format.format(value)} $currencyCode"
+    }.getOrElse { 
+        // Fallback: format without scientific notation
+        val formatter = NumberFormat.getNumberInstance(Locale.US)
+        formatter.maximumFractionDigits = 0
+        formatter.minimumFractionDigits = 0
+        "${formatter.format(value)} $currencyCode"
+    }
 }
 
 private fun formatPercent(rate: Double): String {

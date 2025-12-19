@@ -32,6 +32,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.example.tdtumobilebanking.presentation.dashboard.DashboardUiState
+import java.text.NumberFormat
+import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -120,7 +122,7 @@ fun AccountsListScreen(
                             verticalArrangement = Arrangement.spacedBy(4.dp)
                         ) {
                             Text(
-                                text = "${account.balance} ${account.currency}",
+                                text = formatBalance(account.balance, account.currency),
                                 style = MaterialTheme.typography.bodyMedium,
                                 fontWeight = FontWeight.Bold
                             )
@@ -132,5 +134,6 @@ fun AccountsListScreen(
         }
     }
 }
+
 
 
