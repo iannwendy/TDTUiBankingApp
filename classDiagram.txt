@@ -59,6 +59,7 @@ classDiagram
         +String phoneNumber
         +UserRole role
         +KycStatus kycStatus
+        +String avatarUrl
     }
     
     class Customer {
@@ -82,6 +83,13 @@ classDiagram
         +String ownerId
         +Double balance
         +AccountType accountType
+        +String currency
+        +Double interestRate
+        +Int termMonth
+        +Double principalAmount
+        +Double mortgageRate
+        +Int termMonths
+        +Long startDate
         +deposit(amount)
         +withdraw(amount)
     }
@@ -91,14 +99,10 @@ classDiagram
     }
     
     class SavingAccount {
-        +Double interestRate
-        +Int termMonth
         +calculateMonthlyProfit()
     }
     
     class MortgageAccount {
-        +Double principalAmount
-        +Double mortgageRate
         +calculateMonthlyPayment()
     }
     
@@ -110,15 +114,22 @@ classDiagram
         +TransactionType type
         +TransactionStatus status
         +Long timestamp
+        +String description
     }
     
     class Bill {
         +String billId
         +String billCode
+        +String billType
+        +String customerName
+        +String customerCode
         +String provider
         +Double amount
         +BillStatus status
         +Long dueDate
+        +Long createdAt
+        +Long paidAt
+        +String description
     }
     
     class Branch {
@@ -140,6 +151,8 @@ classDiagram
         +BillRepository
         +AuthRepository
         +UserRepository
+        +BranchRepository
+        +BankRepository
     }
     
     %% ============================================
@@ -153,6 +166,9 @@ classDiagram
         +BillUseCases
         +AuthUseCases
         +UserUseCases
+        +BranchUseCases
+        +BankUseCases
+        +UtilitiesUseCases
     }
     
     %% ============================================

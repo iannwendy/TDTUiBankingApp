@@ -1,6 +1,7 @@
 // Simple Stripe backend for PaymentIntent creation
 // Chạy: ../run_stripe_backend.sh hoặc: cd stripe_backend && npm install && node server.js
 
+require('dotenv').config();
 const express = require('express');
 const Stripe = require('stripe');
 const cors = require('cors');
