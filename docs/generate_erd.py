@@ -218,7 +218,8 @@ def generate_markdown_documentation() -> str:
 def main():
     """Main function"""
     script_dir = Path(__file__).parent
-    docs_dir = script_dir / "docs"
+    # File is now in docs directory, so use script_dir directly
+    docs_dir = script_dir
     docs_dir.mkdir(exist_ok=True)
     
     # Generate Mermaid ERD file
