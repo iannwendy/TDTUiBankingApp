@@ -90,9 +90,8 @@ MODELS = {
 # Đảo ngược một số relationships để Transaction ở trung tâm
 RELATIONSHIPS = [
     ("User", "uid", "Account", "ownerId", "has", "one-to-many"),
-    # Đảo ngược: Transaction -> Account để Transaction được đặt ở trung tâm
-    ("Transaction", "senderAccountId", "Account", "accountId", "sends", "many-to-one"),
-    ("Transaction", "receiverAccountId", "Account", "accountId", "receives", "many-to-one"),
+    # Gộp hai mối quan hệ sends và receives thành một
+    ("Transaction", "senderAccountId", "Account", "accountId", "sends/receives", "many-to-one"),
 ]
 
 

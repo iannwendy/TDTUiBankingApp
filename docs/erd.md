@@ -68,8 +68,7 @@ erDiagram
     }
 
     User ||--o{ Account : "has"
-    Transaction }o--|| Account : "sends"
-    Transaction }o--|| Account : "receives"
+    Transaction }o--|| Account : "sends/receives"
 ```
 
 ## Collections
@@ -148,7 +147,4 @@ erDiagram
   - Relationship: has
 
 - **Transaction.senderAccountId** → **Account.accountId** (many-to-one)
-  - Relationship: sends
-
-- **Transaction.receiverAccountId** → **Account.accountId** (many-to-one)
-  - Relationship: receives
+  - Relationship: sends/receives
