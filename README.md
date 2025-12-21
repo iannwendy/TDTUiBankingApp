@@ -205,6 +205,20 @@ The application uses Firebase Firestore as the backend database. The database sc
   - Camera (for eKYC)
   - Location (for branch locator)
 
+## Demo Accounts
+
+For testing purposes, the following demo accounts are available:
+
+- **Bank Officer Account**:
+  - Email: `off@gmail.com`
+  - Password: `pass123`
+
+- **Customer Account**:
+  - Email: `test01@gmail.com`
+  - Password: `pass123`
+
+These accounts can be used to test different user roles and functionalities within the application.
+
 ## Development
 
 ### Running Tests
